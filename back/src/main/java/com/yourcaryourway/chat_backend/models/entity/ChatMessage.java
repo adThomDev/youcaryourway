@@ -1,11 +1,9 @@
 package com.yourcaryourway.chat_backend.models.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-import lombok.ToString;
-import java.time.LocalDateTime;
+import lombok.*;
+
+import java.time.Instant;
 
 @Entity
 @Table(name = "chat_messages")
@@ -32,9 +30,9 @@ public class ChatMessage {
     private String content;
 
     @Column(name = "sent_at")
-    private LocalDateTime sentAt;
+    private Instant sentAt;
 
     @Column(name = "read_at")
-    private LocalDateTime readAt;
+    private Instant readAt;
 
 }

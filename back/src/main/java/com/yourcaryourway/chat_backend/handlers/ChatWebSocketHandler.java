@@ -2,6 +2,7 @@ package com.yourcaryourway.chat_backend.handlers;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yourcaryourway.chat_backend.models.dto.ChatMessageDTO;
 import com.yourcaryourway.chat_backend.models.entity.ChatMessage;
 import com.yourcaryourway.chat_backend.models.entity.User;
 import com.yourcaryourway.chat_backend.repositories.ChatMessageRepository;
@@ -12,8 +13,9 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -23,13 +25,15 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 
     private final ChatMessageRepository chatMessageRepository;
     private final UserRepository userRepository;
+    private final ObjectMapper objectMapper;
 
     private final Set<WebSocketSession> sessions = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private final Map<WebSocketSession, User> sessionUserMap = new ConcurrentHashMap<>();
 
-    public ChatWebSocketHandler(ChatMessageRepository chatMessageRepository, UserRepository userRepository) {
+    public ChatWebSocketHandler(ChatMessageRepository chatMessageRepository, UserRepository userRepository, ObjectMapper objectMapper) {
         this.chatMessageRepository = chatMessageRepository;
         this.userRepository = userRepository;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -42,33 +46,58 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         // Associate the session with the user
         sessionUserMap.put(session, user);
         sessions.add(session);
+
+        // Fetch chat history for the user
+        List<ChatMessage> chatHistory = chatMessageRepository.findBySenderOrReceiverOrderBySentAt(user, user);
+
+        // Convert to DTOs
+        List<ChatMessageDTO> chatHistoryDTOs = chatHistory.stream()
+            .map(message -> new ChatMessageDTO(
+                    message.getContent(),
+                    message.getSentAt(),
+                    message.getSender().getUserId(),
+                    message.getReceiver().getUserId()
+            ))
+            .toList();
+
+        // Send chat history to the user
+        String chatHistoryJson = objectMapper.writeValueAsString(chatHistoryDTOs);
+        session.sendMessage(new TextMessage(chatHistoryJson));
     }
 
     @Override
     public void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
         User sender = sessionUserMap.get(session);
-        String content = message.getPayload();
+        String payload = message.getPayload();
 
-        // Parse recipient ID from the message payload (example JSON: {"recipientId": 2, "content": "Hello"})
-        ObjectMapper objectMapper = new ObjectMapper();
-        JsonNode messageJson = objectMapper.readTree(content);
+        // Parse the message payload using the injected ObjectMapper
+        JsonNode messageJson = objectMapper.readTree(payload);
         int recipientId = messageJson.get("recipientId").asInt();
         String messageContent = messageJson.get("content").asText();
 
         User recipient = userRepository.findById(recipientId)
                 .orElseThrow(() -> new IllegalArgumentException("Recipient not found"));
 
+        // Create the ChatMessage entity
         ChatMessage chatMessage = new ChatMessage();
         chatMessage.setContent(messageContent);
-        chatMessage.setSentAt(LocalDateTime.now());
+        chatMessage.setSentAt(Instant.now());
         chatMessage.setSender(sender);
         chatMessage.setReceiver(recipient);
         chatMessageRepository.save(chatMessage);
-
-        // Send the message to the recipient's session
+        
+        // Broadcast the message to the recipient's session
+        ChatMessageDTO sentMessageDto = new ChatMessageDTO(
+            chatMessage.getContent(),
+            chatMessage.getSentAt(),
+            chatMessage.getSender().getUserId(),
+            chatMessage.getReceiver().getUserId()
+        );
+        String sentMessageJson = objectMapper.writeValueAsString(sentMessageDto);
+        
         for (Map.Entry<WebSocketSession, User> entry : sessionUserMap.entrySet()) {
             if (entry.getValue().equals(recipient) && entry.getKey().isOpen()) {
-                entry.getKey().sendMessage(new TextMessage(messageContent));
+                entry.getKey().sendMessage(new TextMessage(sentMessageJson));
             }
         }
     }
