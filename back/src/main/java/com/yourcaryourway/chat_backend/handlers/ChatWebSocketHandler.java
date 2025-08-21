@@ -6,7 +6,7 @@ import com.yourcaryourway.chat_backend.models.entity.ChatMessage;
 import com.yourcaryourway.chat_backend.models.entity.User;
 import com.yourcaryourway.chat_backend.repositories.ChatMessageRepository;
 import com.yourcaryourway.chat_backend.repositories.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
@@ -18,16 +18,19 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+@Component
 public class ChatWebSocketHandler extends TextWebSocketHandler {
+
+    private final ChatMessageRepository chatMessageRepository;
+    private final UserRepository userRepository;
 
     private final Set<WebSocketSession> sessions = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private final Map<WebSocketSession, User> sessionUserMap = new ConcurrentHashMap<>();
 
-    @Autowired
-    private ChatMessageRepository chatMessageRepository;
-
-    @Autowired
-    private UserRepository userRepository;
+    public ChatWebSocketHandler(ChatMessageRepository chatMessageRepository, UserRepository userRepository) {
+        this.chatMessageRepository = chatMessageRepository;
+        this.userRepository = userRepository;
+    }
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
