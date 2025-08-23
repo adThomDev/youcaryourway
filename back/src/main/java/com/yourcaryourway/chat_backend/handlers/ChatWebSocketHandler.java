@@ -86,7 +86,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         chatMessage.setReceiver(recipient);
         chatMessageRepository.save(chatMessage);
         
-        // Broadcast the message to the recipient's session
+        // Create the message DTO
         ChatMessageDTO sentMessageDto = new ChatMessageDTO(
             chatMessage.getContent(),
             chatMessage.getSentAt(),
@@ -95,8 +95,9 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         );
         String sentMessageJson = objectMapper.writeValueAsString(sentMessageDto);
         
+        // Send the message to both the recipient and the sender
         for (Map.Entry<WebSocketSession, User> entry : sessionUserMap.entrySet()) {
-            if (entry.getValue().equals(recipient) && entry.getKey().isOpen()) {
+            if ((entry.getValue().equals(recipient) || entry.getValue().equals(sender)) && entry.getKey().isOpen()) {
                 entry.getKey().sendMessage(new TextMessage(sentMessageJson));
             }
         }
