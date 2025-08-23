@@ -1,43 +1,86 @@
-import { Component } from '@angular/core';
+import { Component, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
-
-// Import user role constants
+import { HttpClientModule } from '@angular/common/http';
+import { Message, Chat } from '../../models/interface';
 import {
   CUSTOMER1,
   CUSTOMER2,
   SUPPORT,
 } from '../../constants/user-roles.constants';
+import { UserService, UserDTO } from '../../services/user.service';
 
 @Component({
   selector: 'app-chat',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, HttpClientModule],
   templateUrl: './chat.component.html',
   styleUrls: ['./chat.component.scss'],
 })
-export class ChatComponent {
+export class ChatComponent implements OnDestroy {
   selectedUser: string = '';
-  messages: {
-    content: string;
-    sentAt: string;
-    senderId: number;
-    receiverId: number;
-  }[] = [];
+  selectedUserId: number | null = null;
+  messages: Message[] = [];
+  chats: Chat[] = [];
+  interlocutorIds: number[] = [];
+  selectedInterlocutor: number | null = null;
+  messageContent: string = '';
+  private ws: WebSocket | null = null;
 
-  selectedUserId: number = 0;
+  userNames: { [id: number]: string } = {};
+
+  constructor(private userService: UserService) {}
+
+  ngOnDestroy(): void {
+    if (this.ws) {
+      this.ws.close();
+    }
+  }
 
   connectToWebSocket(userId: number): void {
+    if (this.ws) {
+      this.ws.close();
+    }
+
     const ws = new WebSocket(`ws://localhost:8080/chat?userId=${userId}`);
+    this.ws = ws;
 
     ws.onopen = () => {
       console.log('WebSocket connection established for user:', userId);
     };
 
     ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
+      this.selectedInterlocutor = null;
+      const data: Message[] = JSON.parse(event.data);
       this.messages = data;
-      console.log('Received data:', data);
+
+      const chatsMap: { [key: number]: Message[] } = {};
+      data.forEach((message: Message) => {
+        const interlocutorId =
+          message.senderId === this.selectedUserId
+            ? message.receiverId
+            : message.senderId;
+
+        if (!chatsMap[interlocutorId]) {
+          chatsMap[interlocutorId] = [];
+        }
+        chatsMap[interlocutorId].push(message);
+      });
+
+      const keys = Object.keys(chatsMap);
+      if (keys.length === 1) {
+        this.selectedInterlocutor = +keys[0];
+      }
+
+      this.chats = Object.entries(chatsMap).map(([id, msgs]) => ({
+        interlocutorId: +id,
+        messages: msgs,
+      }));
+
+      this.interlocutorIds = this.chats.map((c) => c.interlocutorId);
+      this.interlocutorIds.forEach((id) => this.loadUserName(id));
+
+      console.log('Chats séparés :', this.chats);
     };
 
     ws.onerror = (error) => {
@@ -52,18 +95,15 @@ export class ChatComponent {
   onUserChange(): void {
     console.log('User changed to:', this.selectedUser);
     switch (this.selectedUser) {
-      case 'customer1':
-        {
-          this.selectedUserId = CUSTOMER1;
-          this.connectToWebSocket(CUSTOMER1);
-        }
-        
+      case 'Customer 1':
+        this.selectedUserId = CUSTOMER1;
+        this.connectToWebSocket(CUSTOMER1);
         break;
-      case 'customer2':
+      case 'Customer 2':
         this.selectedUserId = CUSTOMER2;
         this.connectToWebSocket(CUSTOMER2);
         break;
-      case 'support':
+      case 'Support':
         this.selectedUserId = SUPPORT;
         this.connectToWebSocket(SUPPORT);
         break;
@@ -72,12 +112,54 @@ export class ChatComponent {
     }
   }
 
-  getSenderLabel(senderId: number): string {
-    if (senderId === this.selectedUserId) return 'you';
-    else if (senderId === CUSTOMER1) return 'customer1';
-    if (senderId === CUSTOMER2) return 'customer2';
-    if (senderId === SUPPORT) return 'support';
-    return 'unknown';
+  getFilteredMessages(): Message[] {
+    if (!this.selectedInterlocutor && this.interlocutorIds.length === 1) {
+      return this.chats[0].messages;
+    }
+
+    const chat = this.chats.find(
+      (c) => c.interlocutorId === this.selectedInterlocutor
+    );
+    return chat ? chat.messages : [];
   }
 
+  getSenderLabel(userId: number): string {
+    if (userId === this.selectedUserId) {
+      return 'you';
+    }
+    return this.userNames[userId] || `User ${userId}`;
+  }
+
+  private loadUserName(userId: number): void {
+    if (this.userNames[userId]) return;
+
+    this.userService.getUserById(userId).subscribe({
+      next: (user: UserDTO) => {
+        this.userNames[user.userId] = `${user.firstName} ${user.lastName}`;
+      },
+      error: (err) => {
+        console.error(
+          `Erreur lors du chargement de l'utilisateur ${userId}:`,
+          err
+        );
+        this.userNames[userId] = `User ${userId}`;
+      },
+    });
+  }
+
+  sendMessage(): void {
+    if (!this.messageContent || !this.selectedInterlocutor || !this.ws) {
+      console.warn('Cannot send message: no content, no recipient, or WebSocket not connected.');
+      return;
+    }
+
+    const messageToSend = {
+      recipientId: this.selectedInterlocutor,
+      content: this.messageContent,
+    };
+
+    this.ws.send(JSON.stringify(messageToSend));
+
+    this.messageContent = '';
+  }
 }
