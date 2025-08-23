@@ -1,0 +1,31 @@
+<div class="chat-container">
+  <header>
+    <h1>Your Car Your Way</h1>
+  </header>
+  <main>
+    <label for="user-select">Switch User:</label>
+    <select
+      id="user-select"
+      [(ngModel)]="selectedUser"
+      (change)="onUserChange()"
+    >
+      <option value="" disabled selected>Select a user</option>
+      <option value="customer1">Customer 1</option>
+      <option value="customer2">Customer 2</option>
+      <option value="support">Support</option>
+    </select>
+    <p *ngIf="selectedUser">Current User: {{ selectedUser }}</p>
+
+    <div class="messages">
+      <div *ngFor="let message of messages">
+        <p>
+          <strong>{{ getSenderLabel(message.senderId) }}:</strong>
+          {{ message.content }}
+        </p>
+      </div>
+    </div>
+  </main>
+  <footer>
+    <p>&copy; 2025 A.THOMAS</p>
+  </footer>
+</div>
