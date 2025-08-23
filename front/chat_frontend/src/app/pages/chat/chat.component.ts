@@ -49,39 +49,66 @@ export class ChatComponent implements OnDestroy {
       console.log('WebSocket connection established for user:', userId);
     };
 
-    ws.onmessage = (event) => {
-      this.selectedInterlocutor = null;
-      const data: Message[] = JSON.parse(event.data);
-      this.messages = data;
+ws.onmessage = (event) => {
+  console.log('WebSocket received:', event.data);
+  const data = JSON.parse(event.data);
 
-      const chatsMap: { [key: number]: Message[] } = {};
-      data.forEach((message: Message) => {
-        const interlocutorId =
-          message.senderId === this.selectedUserId
-            ? message.receiverId
-            : message.senderId;
+  // If data is an array, it's the chat history
+  if (Array.isArray(data)) {
+    this.selectedInterlocutor = null;
+    this.messages = data;
 
-        if (!chatsMap[interlocutorId]) {
-          chatsMap[interlocutorId] = [];
-        }
-        chatsMap[interlocutorId].push(message);
-      });
+    const chatsMap: { [key: number]: Message[] } = {};
+    data.forEach((message: Message) => {
+      const interlocutorId =
+        message.senderId === this.selectedUserId
+          ? message.receiverId
+          : message.senderId;
 
-      const keys = Object.keys(chatsMap);
-      if (keys.length === 1) {
-        this.selectedInterlocutor = +keys[0];
+      if (!chatsMap[interlocutorId]) {
+        chatsMap[interlocutorId] = [];
       }
+      chatsMap[interlocutorId].push(message);
+    });
 
-      this.chats = Object.entries(chatsMap).map(([id, msgs]) => ({
-        interlocutorId: +id,
-        messages: msgs,
-      }));
+    this.chats = Object.entries(chatsMap).map(([id, msgs]) => ({
+      interlocutorId: +id,
+      messages: msgs,
+    }));
 
-      this.interlocutorIds = this.chats.map((c) => c.interlocutorId);
-      this.interlocutorIds.forEach((id) => this.loadUserName(id));
+    this.interlocutorIds = this.chats.map((c) => c.interlocutorId);
+    this.interlocutorIds.forEach((id) => this.loadUserName(id));
 
-      console.log('Chats séparés :', this.chats);
-    };
+    // if there's only one interlocutor, he's the selectedInterlocutor
+    if (this.chats.length === 1) {
+      this.selectedInterlocutor = this.chats[0].interlocutorId;
+    }
+
+    console.log('Chats séparés :', this.chats);
+  }
+
+  // If data is a single message, it's a new incoming message 
+  // (that might be your own message you just sent)
+  else {
+    const message = data as Message;
+    const interlocutorId =
+      message.senderId === this.selectedUserId
+        ? message.receiverId
+        : message.senderId;
+
+    let chat = this.chats.find((c) => c.interlocutorId === interlocutorId);
+    if (!chat) {
+      chat = { interlocutorId, messages: [] };
+      this.chats.push(chat);
+      this.interlocutorIds.push(interlocutorId);
+      this.loadUserName(interlocutorId);
+    }
+
+    chat.messages.push(message);
+    this.chats = [...this.chats]; //trick to reassign the same data 
+    // to trigger Angular's change detection and update the UI
+  }
+};
 
     ws.onerror = (error) => {
       console.error('WebSocket error:', error);
