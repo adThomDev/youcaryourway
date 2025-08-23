@@ -20,11 +20,18 @@
     </select>
   </div>
 
-  <div class="messages">
-    <div *ngFor="let message of getFilteredMessages()">
-      <p><strong>{{ getSenderLabel(message.senderId) }}:</strong> {{ message.content }}</p>
-    </div>
+<div class="messages">
+  <div
+    *ngFor="let message of getFilteredMessages()"
+    [ngClass]="{
+      'from-you': message.senderId === selectedUserId,
+      'from-other': message.senderId !== selectedUserId
+    }"
+  >
+    <p><strong>{{ getSenderLabel(message.senderId) }}:</strong> {{ message.content }}</p>
   </div>
+</div>
+
 
   <div class="message-input" *ngIf="selectedInterlocutor">
     <textarea [(ngModel)]="messageContent" placeholder="Tapez un message..."></textarea>
