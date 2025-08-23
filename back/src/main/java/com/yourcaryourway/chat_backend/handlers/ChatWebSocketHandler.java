@@ -94,13 +94,15 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             chatMessage.getReceiver().getUserId()
         );
         String sentMessageJson = objectMapper.writeValueAsString(sentMessageDto);
-        
+
         // Send the message to both the recipient and the sender
         for (Map.Entry<WebSocketSession, User> entry : sessionUserMap.entrySet()) {
-            if ((entry.getValue().equals(recipient) || entry.getValue().equals(sender)) && entry.getKey().isOpen()) {
+            Integer userId = entry.getValue().getUserId();
+            if ((userId.equals(recipient.getUserId()) || userId.equals(sender.getUserId())) && entry.getKey().isOpen()) {
                 entry.getKey().sendMessage(new TextMessage(sentMessageJson));
             }
         }
+
     }
 
     @Override
