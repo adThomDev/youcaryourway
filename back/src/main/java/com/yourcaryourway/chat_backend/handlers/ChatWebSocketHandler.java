@@ -53,10 +53,10 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         // Convert to DTOs
         List<ChatMessageDTO> chatHistoryDTOs = chatHistory.stream()
             .map(message -> new ChatMessageDTO(
-                    message.getContent(),
-                    message.getSentAt(),
-                    message.getSender().getUserId(),
-                    message.getReceiver().getUserId()
+                message.getContent(),
+                message.getSentAt(),
+                message.getSender().getUserId(),
+                message.getReceiver().getUserId()
             ))
             .toList();
 

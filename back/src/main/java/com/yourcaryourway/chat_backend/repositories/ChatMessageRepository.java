@@ -12,3 +12,4 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Intege
 
     List<ChatMessage> findBySenderOrReceiverOrderBySentAt(User sender, User receiver);
 }
+
