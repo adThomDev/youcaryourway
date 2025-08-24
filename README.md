@@ -3,7 +3,7 @@
 
 A WebSocket real-time chat Proof of Concept for *Your Car Your Way*, using Angular and Spring Boot.
 
-### Clone project:
+### Clone the project :
 ```bash
 git clone https://github.com/adThomDev/youcaryourway.git
 ```
@@ -14,32 +14,32 @@ Navigate to the front/chat_frontend folder :
 cd front/chat_frontend
 ```
 
-Install dependencies:
+Install dependencies :
 ```bash
 npm install
 ```
 
-Launch Front-end:
+Launch the frontend :
 ```bash
 npm run start
 ```
 
 The app should then be available at `http://localhost:4200/`
 
-## Spring Boot Backend
+## Spring Boot backend
 Navigate to the back folder :
 ```bash
 cd back
 ```
 
-Install dependencies:
+Install dependencies :
 ```bash
 mvn clean install
 ```
 
 Setup the database (there is a MySQL script in the docs folder) and its credentials (see application.properties). 
 
-Launch the Backend:
+Launch the Backend :
 ```bash
 mvn spring-boot:run
 ```
