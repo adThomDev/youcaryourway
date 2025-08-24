@@ -1,0 +1,40 @@
+<div class="chat-container">
+  <label for="user-select">Changer d'utilisateur : </label>
+  <select id="user-select" [(ngModel)]="selectedUser" (change)="onUserChange()">
+    <option value="" disabled selected>Choisir un utilisateur</option>
+    <option value="Customer 1">Ali Machin (client 1)</option>
+    <option value="Customer 2">Bob Bidule (client 2)</option>
+    <option value="Support">Jean Truc (support)</option>
+  </select>
+
+  <div *ngIf="interlocutorIds.length > 1">
+    <label for="conversation-select">Changer d'interlocuteur : </label>
+    <select
+      id="conversation-select"
+      [(ngModel)]="selectedInterlocutor"
+    >
+      <option [ngValue]="null" disabled selected>Choisir une conversation avec...</option>
+      <option *ngFor="let interlocutorId of interlocutorIds" [ngValue]="interlocutorId">
+        {{ getSenderLabel(interlocutorId) }}
+      </option>
+    </select>
+  </div>
+
+<div class="messages">
+  <div
+    *ngFor="let message of getFilteredMessages()"
+    [ngClass]="{
+      'from-you': message.senderId === selectedUserId,
+      'from-other': message.senderId !== selectedUserId
+    }"
+  >
+    <p><strong>{{ getSenderLabel(message.senderId) }}:</strong> {{ message.content }}</p>
+  </div>
+</div>
+
+
+  <div class="message-input" *ngIf="selectedInterlocutor">
+    <textarea [(ngModel)]="messageContent" placeholder="Tapez un message..."></textarea>
+    <button (click)="sendMessage()">Envoyer</button>
+  </div>
+</div>
